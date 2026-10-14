@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="grid2">
+<form class="card" id="runform" method="post" enctype="multipart/form-data">
+  <h2>Run the pipeline <small class="muted">(Admin)</small></h2>
+
+  <h3>GoPro videos <small class="muted">— {{ video_dir }}</small></h3>
+  {% if videos %}
+  <div class="selbar"><button type="button" class="btn ghost small selall" data-group="videos">Select all</button>
+    <span class="muted small" id="count-videos"></span></div>
+  {% endif %}
+  {% for v in videos %}
+    <label class="check"><input type="checkbox" name="videos" value="{{ v.name }}" {{ 'checked' if v.name in sel.videos }}>
+      {{ v.name }} <small class="muted">{{ (v.stat().st_size/1e9)|round(2) }} GB</small>
+      {% if v.name in done %}<span class="pill clear">processed</span>{% endif %}</label>
+  {% else %}
+    <p class="muted">No videos yet — copy your GoPro <code>.MP4</code> files into the folder above and refresh.</p>
+  {% endfor %}
+
+  <h3>User photos <small class="muted">— {{ image_dir }} (Stages 1 &amp; 2 skipped)</small></h3>
+  {% if images %}
+  <div class="selbar"><button type="button" class="btn ghost small selall" data-group="images">Select all</button>
+    <span class="muted small" id="count-images"></span></div>
+  {% endif %}
+  {% for i in images %}
+    <label class="check"><input type="checkbox" name="images" value="{{ i.name }}" {{ 'checked' if i.name in sel.images }}>
+      {{ i.name }}{% if i.name in done %} <span class="pill clear">processed</span>{% endif %}</label>
+  {% endfor %}
+  <label class="field">Upload photos with GPS (EXIF): <input type="file" name="upload" multiple accept=".jpg,.jpeg,.png"></label>
+
+  <h3>Settings</h3>
+  {% set det = sel.get('detector', cfg.DETECTOR) %}
+  <div class="row">
+    <label class="field">Sample a frame every <input type="number" step="0.5" min="1" name="every_m" value="{{ sel.get('every_m', cfg.SAMPLE_EVERY_M) }}"> m</label>
+    <label class="field">Only first <input type="number" step="10" min="10" name="max_seconds" placeholder="all" value="{{ sel.get('max_seconds') or '' }}"> seconds</label>
+    <label class="field">Detector
+      <select name="detector">
+        <option value="clip+boxes" {{ 'selected' if det=='clip+boxes' }}>CLIP scores + OWLv2 boxes</option>
+        <option value="clip" {{ 'selected' if det=='clip' }}>CLIP scores only (faster)</option>
+        <option value="mock" {{ 'selected' if det=='mock' }}>Mock (no ML, instant)</option>
+      </select></label>
+  </div>
+  <button class="btn" id="runbtn" {{ 'disabled' if job.running }}>{{ 'Running…' if job.running else '▶ Run pipeline' }}</button>
+  <span id="formmsg" class="formmsg"></span>
+</form>
+
+<div class="card">
+  <h2>Live log <span id="state" class="pill {{ 'needs_review' if job.running else 'clear' }}">{{ 'running' if job.running else 'idle' }}</span></h2>
+  <pre id="log">{{ job.log|join('\n') }}</pre>
+  <p id="done" class="{{ '' if (job.finished and not job.running) else 'hidden' }}">
+    ✔ Finished — open the <a href="{{ url_for('dashboard') }}">Dashboard</a> or the <a href="{{ url_for('review_queue') }}">Review queue</a>.</p>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const logEl = document.getElementById("log");
+logEl.scrollTop = logEl.scrollHeight;
+async function poll() {
+  const j = await (await fetch("/api/job")).json();
+  logEl.textContent = j.log.join("\n");
+  logEl.scrollTop = logEl.scrollHeight;
+  const st = document.getElementById("state");
+  st.textContent = j.running ? "running" : "idle";
+  st.className = "pill " + (j.running ? "needs_review" : "clear");
+  if (j.running) setTimeout(poll, 1000);
+  else if (j.finished) { document.getElementById("done").classList.remove("hidden");
+    const b = document.getElementById("runbtn"); b.disabled = false; b.textContent = "▶ Run pipeline"; }
+}
+{% if job.running %}poll();{% endif %}
+
+// "Select all" toggles every checkbox in its group; label flips to "Deselect all" when all are ticked
+const boxesOf = g => [...document.querySelectorAll(`input[name="${g}"]`)];
+function refresh(g) {
+  const cbs = boxesOf(g), n = cbs.filter(c => c.checked).length;
+  const btn = document.querySelector(`.selall[data-group="${g}"]`);
+  if (!btn) return;
+  btn.textContent = n === cbs.length ? "Deselect all" : "Select all";
+  document.getElementById(`count-${g}`).textContent = `${n} of ${cbs.length} selected`;
+}
+document.querySelectorAll(".selall").forEach(btn => {
+  const g = btn.dataset.group;
+  btn.addEventListener("click", () => {
+    const cbs = boxesOf(g), all = cbs.every(c => c.checked);
+    cbs.forEach(c => c.checked = !all);
+    refresh(g);
+  });
+  boxesOf(g).forEach(c => c.addEventListener("change", () => refresh(g)));
+  refresh(g);
+});
+
+document.getElementById("runform").addEventListener("submit", e => {
+  const picked = document.querySelectorAll('input[name="videos"]:checked, input[name="images"]:checked').length
+               + document.querySelector('input[name="upload"]').files.length;
+  if (!picked) { e.preventDefault(); document.getElementById("formmsg").textContent = "Select at least one video or photo."; }
+});
+</script>
+{% endblock %}

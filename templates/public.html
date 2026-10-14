@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card">
+  <h2>Public view — confirmed exterior code violations</h2>
+  <p class="muted">Only violations an inspector has confirmed are shown here. Unreviewed AI predictions are never public.</p>
+  <div id="map" class="map"></div>
+</div>
+<div class="card">
+  <table>
+    <tr><th>Property</th><th>Confirmed violations</th></tr>
+    {% for p in props %}
+    <tr><td><b>{{ p.address }}</b></td>
+        <td>{% for v in p.violations %}<span class="tag confirmed">{{ v.violation_type|nice }}</span>{% endfor %}</td></tr>
+    {% else %}<tr><td colspan="2" class="muted">No confirmed violations yet — confirm some in the Review queue.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const props = {{ props|tojson }};
+const map = makeMap("map");
+props.forEach(p => L.circleMarker([p.lat, p.lon], {radius: 8, color: "#222", weight: 1, fillColor: "#d62828", fillOpacity: .9})
+  .bindPopup(`<b>${p.address}</b><br>${p.violations.map(v => v.violation_type.replace("_", " ")).join(", ")}`).addTo(map));
+if (props.length) map.fitBounds(props.map(p => [p.lat, p.lon]), {padding: [30, 30], maxZoom: 18}); else map.setView([42.86, -78.82], 13);
+</script>
+{% endblock %}

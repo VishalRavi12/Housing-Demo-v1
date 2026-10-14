@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_macros.html" import boxed, box_toggle %}
+{% block body %}
+<p><a href="{{ url_for('properties') }}">← All properties</a></p>
+<div class="grid2">
+  <div class="card">
+    <h2>{{ p.address }}</h2>
+    <p class="muted">Matched by {{ p.method|replace('_',' ') }} · key <code>{{ p.key }}</code> · {{ frames|length }} frames</p>
+    <div id="map" class="map"></div>
+    <div class="legend"><span><i style="background:#3a86ff"></i>Camera position</span><span><i style="background:#d62828"></i>Property</span><span><i class="line"></i>Line of sight</span></div>
+  </div>
+  <div class="card">
+    <h2>Possible violations</h2>
+    {% for v in viols %}
+    <div class="viol">
+      {% if v.image_path %}{{ boxed(url_for('media', p=v.image_path), v.boxes) }}{% else %}<div></div>{% endif %}
+      <div>
+        <b>{{ v.violation_type|nice }}</b> <span class="pill {{ v.status }}">{{ v.status|replace('_',' ') }}</span><br>
+        confidence {{ (v.confidence*100)|round(1) }}%
+        · {% if v.boxes %}📍 {{ v.boxes|length }} region{{ 's' if v.boxes|length > 1 }} located{% else %}<span class="muted">no box located</span>{% endif %}
+        {% include "_review_buttons.html" %}
+      </div>
+    </div>
+    {% else %}<p class="muted">No possible violations found for this property.</p>{% endfor %}
+    {% if reviews %}
+    <h3>Review history</h3>
+    <ul class="hist">{% for r in reviews %}
+      <li>{{ r.created_at }} — <b>{{ r.reviewer }}</b> {{ r.action }}ed {{ r.old_type|nice }}{% if r.action=='correct' %} → {{ r.new_type|nice }}{% endif %}{% if r.note %} · “{{ r.note }}”{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Evidence frames</h2>
+  <div class="toolbar">{{ box_toggle() }}</div>
+  <div class="gallery">
+  {% for f in frames %}
+    <figure>
+      {{ boxed(url_for('media', p=f.image_path), f.boxes, lazy=true) }}
+      <figcaption>
+        <b>{{ f.source_name }}</b> @ {{ f.video_time_s|round(1) }} s · heading {{ f.heading_deg|round|int }}°<br>
+        {{ f.lat|round(6) }}, {{ f.lon|round(6) }} · building {{ (f.building_prob*100)|round|int }}% · sharpness {{ f.blur|round|int }}<br>
+        {% for k, s in f.scores|dictsort(by='value', reverse=true) %}<span class="score" style="--w:{{ (s*100)|round }}%">{{ k|nice }} {{ (s*100)|round|int }}%</span>{% endfor %}
+        {% if not f.scores %}<span class="muted">no building in view — not scored</span>{% endif %}
+      </figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const p = {{ p|tojson }}, frames = {{ frames|tojson }};
+const map = makeMap("map");
+const pts = [[p.lat, p.lon]];
+frames.forEach(f => {
+  L.polyline([[f.lat, f.lon], [f.look_lat, f.look_lon]], {color: "#666", weight: 1, dashArray: "3 3"}).addTo(map);
+  L.circleMarker([f.lat, f.lon], {radius: 4, color: "#3a86ff", fillOpacity: 1}).bindPopup(`${f.source_name} @ ${f.video_time_s.toFixed(1)} s`).addTo(map);
+  pts.push([f.lat, f.lon]);
+});
+L.circleMarker([p.lat, p.lon], {radius: 9, color: "#222", weight: 1, fillColor: "#d62828", fillOpacity: .9}).addTo(map);
+map.fitBounds(pts, {padding: [40, 40], maxZoom: 19});
+</script>
+{% endblock %}

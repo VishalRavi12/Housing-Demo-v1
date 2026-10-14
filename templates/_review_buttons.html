@@ -1,0 +1,9 @@
+<form class="reviewform" method="post" action="{{ url_for('do_review', vid=v.id) }}">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <button class="btn green small" name="action" value="confirm">✔ Confirm</button>
+  <button class="btn red small" name="action" value="reject">✖ Reject</button>
+  <span class="correct">
+    <select name="new_type">{% for t in vtypes if t != v.violation_type %}<option value="{{ t }}">{{ t|nice }}</option>{% endfor %}</select>
+    <button class="btn ghost small" name="action" value="correct">✎ Correct to</button>
+  </span>
+</form>

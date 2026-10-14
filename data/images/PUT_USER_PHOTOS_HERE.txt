@@ -1,0 +1,3 @@
+Optional: phone photos of houses with location (EXIF GPS) turned on.
+They skip Stages 1 and 2 and go straight to Match -> Detect -> Review.
+You can also upload them from the "Run Pipeline" page.

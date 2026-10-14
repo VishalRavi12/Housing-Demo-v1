@@ -1,0 +1,7 @@
+flask>=3.0
+numpy>=1.26
+pandas>=2.0
+opencv-python>=4.9
+pillow>=10.0
+torch>=2.1
+transformers>=4.44,<5

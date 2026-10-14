@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card">
+  <h2>Model performance from human review</h2>
+  <p class="muted">Every inspector decision is a label. Precision = confirmed ÷ (confirmed + rejected) for each violation type.
+    Recall needs a labeled set that includes missed violations (next step 5 &amp; 7 in the plan).</p>
+  <table>
+    <tr><th>Violation type</th><th>Confirmed</th><th>Rejected</th><th>Pending</th><th>Likely (unreviewed)</th><th>Avg confidence</th><th>Precision</th></tr>
+    {% for r in rows %}
+    <tr><td><b>{{ r.violation_type|nice }}</b></td><td>{{ r.confirmed }}</td><td>{{ r.rejected }}</td><td>{{ r.pending }}</td>
+        <td>{{ r.likely }}</td><td>{{ (r.avg_conf*100)|round(1) }}%</td>
+        <td>{% if r.precision is not none %}<b>{{ (r.precision*100)|round(1) }}%</b>{% else %}<span class="muted">not reviewed</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="7" class="muted">No predictions yet.</td></tr>{% endfor %}
+  </table>
+  {% if corrected %}
+  <h3>Corrections (model said → inspector said)</h3>
+  <ul>{% for c in corrected %}<li>{{ c.old_type|nice }} → {{ c.new_type|nice }}: {{ c.n }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+<div class="card">
+  <h2>Export (hand-off to backend / Salesforce)</h2>
+  <a class="btn" href="{{ url_for('export_csv', what='violations') }}">violations.csv</a>
+  <a class="btn" href="{{ url_for('export_csv', what='frames') }}">frames.csv</a>
+  <a class="btn" href="{{ url_for('export_csv', what='reviews') }}">reviews.csv</a>
+  <a class="btn" href="{{ url_for('export_csv', what='boxes') }}">boxes.csv</a>
+  <a class="btn ghost" href="{{ url_for('api_violations') }}" target="_blank">/api/violations (JSON)</a>
+  <a class="btn ghost" href="{{ url_for('api_properties') }}" target="_blank">/api/properties (JSON)</a>
+</div>
+{% endblock %}

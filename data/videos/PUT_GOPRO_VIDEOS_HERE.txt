@@ -1,0 +1,7 @@
+Copy the original GoPro .MP4 files here (e.g. GX010001.MP4 from March 30 and April 17).
+
+Use the ORIGINAL files straight from the camera / Slack download. Re-encoded or
+trimmed copies (WhatsApp, iMovie, HandBrake, etc.) usually lose the GPS9 telemetry track.
+
+No GoPro GPS? Put a CSV with the same name next to the video (GX010001.csv) with columns:
+video_time_s, lat, lon

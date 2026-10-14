@@ -1,0 +1,31 @@
+{# Image with bounding boxes drawn on top. Box coordinates are fractions (0-1) of the image size,
+   so they are placed with percentages and stay aligned at any display size. #}
+{% macro boxed(src, boxes, lazy=false) %}
+<a class="boxed" href="{{ src }}" target="_blank">
+  <img src="{{ src }}" {{ 'loading=lazy' if lazy }}>
+  {% for b in boxes %}
+  <div class="bbox t-{{ b.violation_type }}{{ ' inside' if b.y0 < 0.06 }}" title="{{ b.label }} ({{ (b.score*100)|round(1) }}%)"
+       style="left:{{ b.x0*100 }}%;top:{{ b.y0*100 }}%;width:{{ (b.x1-b.x0)*100 }}%;height:{{ (b.y1-b.y0)*100 }}%">
+    <span>{{ b.label }} {{ (b.score*100)|round|int }}%</span>
+  </div>
+  {% endfor %}
+</a>
+{% endmacro %}
+
+{% macro box_toggle() %}
+<label class="boxtoggle"><input type="checkbox" id="showBoxes" checked> Show detection boxes</label>
+<span class="boxlegend">
+  {% for t in ['broken_window','debris','roof_damage','structural_damage','peeling_paint'] %}
+  <span><i class="t-{{ t }}"></i>{{ t|nice }}</span>
+  {% endfor %}
+</span>
+<script>
+(function () {
+  const cb = document.getElementById("showBoxes");
+  try { cb.checked = localStorage.getItem("showBoxes") !== "0"; } catch (e) {}
+  const apply = () => document.body.classList.toggle("noboxes", !cb.checked);
+  cb.addEventListener("change", () => { apply(); try { localStorage.setItem("showBoxes", cb.checked ? "1" : "0"); } catch (e) {} });
+  apply();
+})();
+</script>
+{% endmacro %}

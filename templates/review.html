@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import boxed, box_toggle %}
+{% block body %}
+<div class="card">
+  <h2>Review queue <small class="muted">(Inspector)</small></h2>
+  <p class="muted">Predictions between {{ (cfg.DISCARD_BELOW*100)|int }}% and {{ (cfg.AUTO_ACCEPT_AT*100)|int }}% confidence are uncertain and need a human decision.
+    Nothing becomes a final record until it is confirmed. Confidence comes from CLIP (whole frame); boxes come from OWLv2 (where).</p>
+  <div class="tabs">
+    <a href="?show=needs_review" class="{{ 'on' if show=='needs_review' }}">Needs review ({{ counts.get('needs_review', 0) }})</a>
+    <a href="?show=likely" class="{{ 'on' if show=='likely' }}">Likely ({{ counts.get('likely', 0) }})</a>
+    <a href="?show=all" class="{{ 'on' if show=='all' }}">All open</a>
+  </div>
+  <div class="toolbar">{{ box_toggle() }}</div>
+</div>
+{% for v in items %}
+<div class="card reviewcard">
+  {{ boxed(url_for('media', p=v.image_path), v.boxes) }}
+  <div>
+    <h3>{{ v.violation_type|nice }} <span class="pill {{ v.status }}">{{ v.status|replace('_',' ') }}</span></h3>
+    <div class="conf"><i style="width:{{ v.confidence*100 }}%"></i><span>{{ (v.confidence*100)|round(1) }}% confidence</span></div>
+    {% if v.boxes %}
+      <p class="located">📍 Located {{ v.boxes|length }} region{{ 's' if v.boxes|length > 1 }}:
+        {% for b in v.boxes %}<span class="tag t-{{ b.violation_type }}">{{ b.label }} {{ (b.score*100)|round|int }}%</span>{% endfor %}</p>
+    {% else %}
+      <p class="located muted">No box located — the score is based on the whole scene.</p>
+    {% endif %}
+    {% set others = v.all_boxes|rejectattr('violation_type', 'equalto', v.violation_type)|list %}
+    {% if others %}<p class="muted small">Other things found in this frame:
+      {% for b in others %}{{ b.label }} {{ (b.score*100)|round|int }}%{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    <p><a href="{{ url_for('property_detail', pid=v.property_id) }}"><b>{{ v.address }}</b></a><br>
+      <small class="muted">{{ v.source_name }} @ {{ v.video_time_s|round(1) }} s · camera at {{ v.cam_lat|round(6) }}, {{ v.cam_lon|round(6) }}</small></p>
+    {% include "_review_buttons.html" %}
+  </div>
+</div>
+{% else %}
+<div class="card empty"><p>🎉 Nothing waiting here.</p></div>
+{% endfor %}
+{% endblock %}

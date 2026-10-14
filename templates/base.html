@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Housing Violation Detection{% endblock %}</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="brand">🏠 Housing Code Violation Detection <span>Team Debuggers · local demo</span></div>
+  <nav>
+    {% set ep = request.endpoint %}
+    <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep=='dashboard' }}">Dashboard</a>
+    <a href="{{ url_for('process') }}" class="{{ 'on' if ep=='process' }}">Run Pipeline <small>Admin</small></a>
+    <a href="{{ url_for('properties') }}" class="{{ 'on' if ep in ('properties','property_detail') }}">Properties</a>
+    <a href="{{ url_for('review_queue') }}" class="{{ 'on' if ep=='review_queue' }}">Review <small>Inspector</small></a>
+    <a href="{{ url_for('public') }}" class="{{ 'on' if ep=='public' }}">Public View</a>
+    <a href="{{ url_for('metrics') }}" class="{{ 'on' if ep=='metrics' }}">Metrics</a>
+  </nav>
+</header>
+<main>
+{% block body %}{% endblock %}
+</main>
+<script>
+const STATUS_COLORS = {confirmed: "#d62828", likely: "#f77f00", needs_review: "#e9b100", clear: "#2a9d8f", rejected: "#8d99ae"};
+function makeMap(id) {
+  const m = L.map(id);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom: 20, maxNativeZoom: 19, attribution: "&copy; OpenStreetMap"}).addTo(m);
+  return m;
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

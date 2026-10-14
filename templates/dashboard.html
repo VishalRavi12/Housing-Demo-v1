@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="stages">
+  <div class="stage"><b>1 · Locate</b><span>{{ "{:,}".format(totals.gps) }}</span><em>GPS samples</em></div>
+  <div class="arrow">→</div>
+  <div class="stage"><b>2 · Select</b><span>{{ "{:,}".format(totals.frames_total) }} → {{ "{:,}".format(totals.frames) }}</span><em>video frames → kept</em></div>
+  <div class="arrow">→</div>
+  <div class="stage"><b>3 · Match</b><span>{{ totals.properties }}</span><em>properties</em></div>
+  <div class="arrow">→</div>
+  <div class="stage"><b>4 · Detect</b><span>{{ totals.violations }}</span><em>possible violations</em></div>
+  <div class="arrow">→</div>
+  <div class="stage"><b>5 · Review</b><span>{{ counts.get('needs_review', 0) }}</span><em>awaiting inspector</em></div>
+</section>
+
+{% if not runs %}
+<div class="card empty">
+  <h2>No data yet</h2>
+  <p>Copy GoPro videos into <code>data/videos</code>, then go to <a href="{{ url_for('process') }}">Run Pipeline</a>.</p>
+</div>
+{% else %}
+<div class="grid2">
+  <div class="card">
+    <h2>Route &amp; properties</h2>
+    <div id="map" class="map tall"></div>
+    <div class="legend">
+      <span><i style="background:#d62828"></i>Confirmed</span><span><i style="background:#f77f00"></i>Likely</span>
+      <span><i style="background:#e9b100"></i>Needs review</span><span><i style="background:#2a9d8f"></i>No issue found</span>
+      <span><i class="line"></i>GPS track</span>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Violation status</h2>
+      <div class="tiles">
+        <div class="tile red"><span>{{ counts.get('confirmed', 0) }}</span>Confirmed</div>
+        <div class="tile orange"><span>{{ counts.get('likely', 0) }}</span>Likely</div>
+        <div class="tile amber"><span>{{ counts.get('needs_review', 0) }}</span>Needs review</div>
+        <div class="tile grey"><span>{{ counts.get('rejected', 0) }}</span>Rejected</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>By violation type</h2>
+      {% set mx = (by_type|map(attribute='n')|max) if by_type else 1 %}
+      {% for t in by_type %}
+      <div class="bar"><label>{{ t.violation_type|nice }}</label><div><i style="width:{{ 100*t.n/mx }}%"></i></div><b>{{ t.n }}</b></div>
+      {% else %}<p class="muted">None detected.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Processing runs</h2>
+  <table>
+    <tr><th>Source</th><th>Detector</th><th>GPS</th><th>Route</th><th>Frames: total → distance → blur/dup removed → kept</th><th>Properties</th><th>Time</th></tr>
+    {% for r in runs %}{% set s = r.stats %}
+    <tr>
+      <td><b>{{ r.source_name }}</b><br><small class="muted">{{ r.started_at }}</small></td>
+      <td>{{ r.detector }}</td>
+      <td>{% if s.raw_points %}{{ s.gps_source }} · {{ s.gps_hz }} Hz<br><small>{{ s.raw_points }} raw → {{ s.after_jump_removal }} clean</small>{% else %}EXIF{% endif %}</td>
+      <td>{% if s.route_length_m %}{{ (s.route_length_m/1000)|round(2) }} km{% else %}–{% endif %}</td>
+      <td>{% if s.frames_total %}{{ "{:,}".format(s.frames_total) }} → {{ s.frames_distance_sampled }} → −{{ s.frames_blurry }}/−{{ s.frames_duplicate }} → <b>{{ s.frames_kept }}</b>{% else %}{{ s.images_with_gps }} photos{% endif %}</td>
+      <td>{{ s.properties }}</td>
+      <td>{{ s.seconds or '' }}{% if s.seconds %} s{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="{{ url_for('reset') }}" onsubmit="return confirm('Delete all results from the database?')">
+    <button class="btn ghost small">Reset database</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if runs %}
+<script>
+const tracks = {{ tracks|tojson }};
+const props = {{ props|tojson }};
+const map = makeMap("map");
+const bounds = [];
+tracks.forEach(t => { if (t.length) { L.polyline(t, {color: "#3a86ff", weight: 4, opacity: .7}).addTo(map); bounds.push(...t); } });
+props.forEach(p => {
+  const v = p.violations.filter(x => x.status !== "rejected").map(x => `${x.violation_type.replace("_"," ")} ${(x.confidence*100).toFixed(0)}% (${x.status.replace("_"," ")})`).join("<br>") || "No issue found";
+  L.circleMarker([p.lat, p.lon], {radius: 7, color: "#222", weight: 1, fillColor: STATUS_COLORS[p.status], fillOpacity: .9})
+    .bindPopup(`<b><a href="/property/${p.id}">${p.address}</a></b><br>${p.n_frames} frames<br>${v}`).addTo(map);
+  bounds.push([p.lat, p.lon]);
+});
+if (bounds.length) map.fitBounds(bounds, {padding: [20, 20]}); else map.setView([42.86, -78.82], 13);
+</script>
+{% endif %}
+{% endblock %}

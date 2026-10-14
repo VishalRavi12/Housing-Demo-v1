@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card">
+  <h2>Properties <small class="muted">({{ props|length }})</small></h2>
+  <table>
+    <tr><th>Property</th><th>Matched by</th><th>Frames</th><th>Status</th><th>Possible violations</th></tr>
+    {% for p in props %}
+    <tr>
+      <td><a href="{{ url_for('property_detail', pid=p.id) }}"><b>{{ p.address }}</b></a></td>
+      <td>{{ p.method|replace('_', ' ') }}</td>
+      <td>{{ p.n_frames }}</td>
+      <td><span class="pill {{ p.status }}">{{ p.status|replace('_', ' ') }}</span></td>
+      <td>{% for v in p.violations if v.status != 'rejected' %}
+        <span class="tag {{ v.status }}">{{ v.violation_type|nice }} {{ (v.confidence*100)|round|int }}%</span>
+      {% endfor %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No properties yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

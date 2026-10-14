@@ -1,0 +1,7 @@
+Optional: drop a parcel-boundary GeoJSON file here (e.g. South Buffalo parcels exported
+from the City of Buffalo / Erie County open-data portal as GeoJSON, WGS84 lat/lon).
+
+Frames are then matched to real parcels with their address. An address field named
+ADDRESS / address / FULL_ADDRESS / LOCATION is picked up automatically.
+
+Without a parcel file the demo still works: it groups frames into 25 m "virtual lots".
